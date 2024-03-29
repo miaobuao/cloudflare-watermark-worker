@@ -5,9 +5,12 @@ declare interface Env {
 	NETA_R2: R2Bucket;
 
 	/** env vars */
-	WATERMARK_URL: string;
+	WATERMARK_KEY?: string;
+	WATERMARK_URL?: string;
 	AUTH_KEY_SECRET: string;
 }
+
+const WatermarkNotFound = new Response('watermark not found.', { status: 500 });
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -31,20 +34,26 @@ export default {
 				const hasWatermark = (url.searchParams.get('watermark') ?? '') === 'false' ? false : true;
 				if (hasWatermark) {
 					const bg = new Uint8Array(await object.arrayBuffer());
-					const watermark = await fetchImage(env.WATERMARK_URL);
+					if (env.WATERMARK_KEY) {
+						const watermarkObj = await env.NETA_R2.get(env.WATERMARK_KEY);
+						if (watermarkObj === null) {
+							return WatermarkNotFound;
+						}
+						var watermark = new Uint8Array(await watermarkObj.arrayBuffer());
+					} else if (env.WATERMARK_URL) {
+						var watermark = await fetchImage(env.WATERMARK_URL);
+					} else {
+						return WatermarkNotFound;
+					}
 					const res = await putWatermark(bg, watermark);
 					if (!res) {
-						return new Response('', { status: 500 });
+						return new Response('watermark service error', { status: 500 });
 					}
 					const blob = new Blob([res]);
 					const stream = blob.stream();
-					return new Response(stream, {
-						headers,
-					});
+					return new Response(stream, { headers });
 				} else {
-					return new Response(object.body, {
-						headers,
-					});
+					return new Response(object.body, { headers });
 				}
 			case 'DELETE':
 				await env.NETA_R2.delete(key);
