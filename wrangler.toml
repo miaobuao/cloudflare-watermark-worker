@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 # Note: Use secrets to store sensitive data.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
 [vars]
-WATERMARK_URL = "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
+WATERMARK_URL = "https://bot-r2.neta.art/water_mask.png"
 
 # Bind an R2 Bucket. Use R2 to store arbitrarily large blobs of data, such as files.
 # Docs: https://developers.cloudflare.com/workers/wrangler/configuration/#r2-buckets

@@ -1,7 +1,10 @@
 import * as Image from '@miaobuao/image-wasm';
+import { imageMeta } from 'image-meta';
 
 declare interface Env {
 	NETA_R2: R2Bucket;
+
+	/** env vars */
 	WATERMARK_URL: string;
 	AUTH_KEY_SECRET: string;
 }
@@ -18,7 +21,6 @@ export default {
 				await env.NETA_R2.put(key, request.body);
 				return new Response(`Put ${key} successfully!`);
 			case 'GET':
-				const a = request.headers.get('with-mask');
 				const object = await env.NETA_R2.get(key);
 				if (object === null) {
 					return new Response('Object Not Found', { status: 404 });
@@ -26,12 +28,11 @@ export default {
 				const headers = new Headers();
 				object.writeHttpMetadata(headers);
 				headers.set('etag', object.httpEtag);
-				const hasWatermark = (url.searchParams.get('watermark') ?? 'true') === 'false' ? false : true;
+				const hasWatermark = (url.searchParams.get('watermark') ?? '') === 'false' ? false : true;
 				if (hasWatermark) {
-					await Image.initSync();
-					const img = new Uint8Array(await object.arrayBuffer());
-					const watermark = await fetch(env.WATERMARK_URL).then(async (d) => new Uint8Array(await d.arrayBuffer()));
-					const res = Image.merge_image(img, watermark, [10, 10], 0.8);
+					const bg = new Uint8Array(await object.arrayBuffer());
+					const watermark = await fetchImage(env.WATERMARK_URL);
+					const res = await putWatermark(bg, watermark);
 					if (!res) {
 						return new Response('', { status: 500 });
 					}
@@ -58,6 +59,19 @@ export default {
 		}
 	},
 };
+
+async function putWatermark(bg: Uint8Array, watermark: Uint8Array, opacity = 1) {
+	await Image.initSync();
+	const watermarkMeta = imageMeta(watermark);
+	const bgMeta = imageMeta(bg);
+	const position = [bgMeta.width! - watermarkMeta.width!, bgMeta.height! - watermarkMeta.height!];
+	const res = Image.merge_image(bg, watermark, position, opacity);
+	return res;
+}
+
+async function fetchImage(url: string) {
+	return fetch(url).then(async (d) => new Uint8Array(await d.arrayBuffer()));
+}
 
 function hasValidHeader(request: Request, env: Env) {
 	return request.headers.get('X-Custom-Auth-Key') === env.AUTH_KEY_SECRET;
