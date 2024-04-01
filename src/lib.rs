@@ -53,12 +53,11 @@ async fn main(mut req: Request, env: Env, ctx: Context) -> Result<Response> {
             image::imageops::overlay(
                 source_img.borrow_mut(),
                 mark_img.borrow(),
-                position_x.into(),
-                position_y.into(),
+                position_x as i64,
+                position_y as i64,
             );
 
             let res = encode_image_to_bytes(&source_img).unwrap();
-
             return Ok(Response::from_bytes(res).unwrap().with_headers(headers));
         }
         Method::Delete => {
